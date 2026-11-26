@@ -100,6 +100,20 @@ export default function AccountsProcurementWalletsPage() {
   // Selected User Ledger Modal
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [userTransactions, setUserTransactions] = useState<TransactionItem[]>([])
+  const [disbursementHistory, setDisbursementHistory] = useState<
+    Array<{
+      id: string
+      date: string
+      amount: number
+      charge: number
+      totalAmount: number
+      paymentMethod: string
+      particular: string
+      wallet: { user: { id: string; fullName: string; email: string } }
+      financeAccount?: { id: string; name: string } | null
+      submittedBy?: { id: string; fullName: string } | null
+    }>
+  >([])
   const [loadingUserLedger, setLoadingUserLedger] = useState(false)
   const [ledgerModalOpen, setLedgerModalOpen] = useState(false)
 
@@ -145,6 +159,7 @@ export default function AccountsProcurementWalletsPage() {
       setWallets(json.data.wallets || [])
       setProcurementUsers(json.data.procurementUsers || [])
       setFinanceAccounts(json.data.financeAccounts || [])
+      setDisbursementHistory(json.data.disbursementHistory || [])
       setMetrics(
         json.data.metrics || {
           totalAdvanceHeld: 0,
@@ -578,6 +593,79 @@ export default function AccountsProcurementWalletsPage() {
                             </Button>
                           )}
                         </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Accounts Wallet Funding History (Disbursements) ── */}
+      <Card className="border-border shadow-sm">
+        <CardHeader className="pb-3 border-b border-border/50">
+          <CardTitle className="text-base flex items-center gap-2">
+            <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+            Accounts Wallet Funding History (Disbursements)
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Complete history of funds added by Accounts into each Procurement Member&apos;s or Leader&apos;s wallet.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {disbursementHistory.length === 0 ? (
+            <div className="p-8 text-center text-xs text-muted-foreground">
+              No wallet disbursements recorded yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/40 text-muted-foreground font-semibold border-b border-border text-[11px]">
+                  <tr>
+                    <th className="p-3">Date</th>
+                    <th className="p-3">Procurement Member / Leader</th>
+                    <th className="p-3">Source Account</th>
+                    <th className="p-3">Method</th>
+                    <th className="p-3">Particular</th>
+                    <th className="p-3 text-right">Amount Added</th>
+                    <th className="p-3 text-right">Charge</th>
+                    <th className="p-3 text-right">Total Disbursed</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {disbursementHistory.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-muted/20">
+                      <td className="p-3 whitespace-nowrap text-muted-foreground">
+                        {new Date(tx.date).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </td>
+                      <td className="p-3 font-semibold text-foreground">
+                        {tx.wallet?.user?.fullName || 'Procurement Member'}
+                      </td>
+                      <td className="p-3 text-muted-foreground">
+                        {tx.financeAccount?.name || '—'}
+                      </td>
+                      <td className="p-3">
+                        <Badge variant="outline" className="text-[10px] font-mono">
+                          {tx.paymentMethod}
+                        </Badge>
+                      </td>
+                      <td className="p-3 text-muted-foreground max-w-xs truncate">
+                        {tx.particular}
+                      </td>
+                      <td className="p-3 text-right font-mono font-semibold text-emerald-600">
+                        +৳{fmt(tx.amount)}
+                      </td>
+                      <td className="p-3 text-right font-mono text-muted-foreground">
+                        {tx.charge > 0 ? `৳${fmt(tx.charge)}` : '৳0'}
+                      </td>
+                      <td className="p-3 text-right font-mono font-bold text-foreground">
+                        ৳{fmt(tx.totalAmount)}
                       </td>
                     </tr>
                   ))}

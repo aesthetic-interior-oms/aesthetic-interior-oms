@@ -120,6 +120,17 @@ export default function ProcurementFinancePage() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>([])
   const [activeProjects, setActiveProjects] = useState<Project[]>([])
   const [isAccountsOrAdmin, setIsAccountsOrAdmin] = useState(false)
+  const [teamWallets, setTeamWallets] = useState<
+    Array<{
+      id: string
+      userId: string
+      advanceBalance: number
+      pendingReimbursement: number
+      totalSpent: number
+      user: { id: string; fullName: string; email: string }
+    }>
+  >([])
+  const [selectedWalletUserId, setSelectedWalletUserId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -151,20 +162,24 @@ export default function ProcurementFinancePage() {
   const fetchWalletData = useCallback(async () => {
     try {
       setRefreshing(true)
-      const res = await fetch('/api/procurement/wallet')
+      const qs = selectedWalletUserId ? `?userId=${encodeURIComponent(selectedWalletUserId)}` : ''
+      const res = await fetch(`/api/procurement/wallet${qs}`)
       const json = await res.json()
       if (!json.success) throw new Error(json.error || 'Failed to load wallet data')
       setWallet(json.data.wallet)
       setTransactions(json.data.transactions || [])
       setActiveProjects(json.data.activeProjects || [])
       setIsAccountsOrAdmin(Boolean(json.data.isAccountsOrAdmin))
+      if (Array.isArray(json.data.teamWallets)) {
+        setTeamWallets(json.data.teamWallets)
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Error loading wallet data')
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [selectedWalletUserId])
 
   useEffect(() => {
     fetchWalletData()
@@ -310,7 +325,24 @@ export default function ProcurementFinancePage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {teamWallets.length > 0 && (
+            <Select
+              value={selectedWalletUserId || wallet?.userId || ''}
+              onValueChange={(val) => setSelectedWalletUserId(val)}
+            >
+              <SelectTrigger className="h-9 text-xs w-56">
+                <SelectValue placeholder="Select Team Wallet" />
+              </SelectTrigger>
+              <SelectContent>
+                {teamWallets.map((tw) => (
+                  <SelectItem key={tw.userId} value={tw.userId} className="text-xs">
+                    {tw.user.fullName} (৳{fmt(tw.advanceBalance)})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button
             variant="outline"
             size="sm"

@@ -6,6 +6,7 @@ import {
   recordProcurementExpense,
 } from '@/lib/procurement-wallet-service'
 import { ProcurementPaidFrom } from '@/generated/prisma/client'
+import { hasProcurementLeaderRole } from '@/lib/procurement-roles'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,13 +27,14 @@ export async function GET(request: NextRequest) {
       departments.has('ACCOUNTS') ||
       departments.has('ADMIN') ||
       actor.id === 'admin'
+    const isProcurementLeader = hasProcurementLeaderRole(authResult.actorRoles)
 
     const { searchParams } = new URL(request.url)
     const mode = searchParams.get('mode')
     const targetUserId = searchParams.get('userId')
 
-    // If Accounts/Admin requests all wallets
-    if (mode === 'all' && isAccountsOrAdmin) {
+    // If Accounts/Admin or Procurement Leader requests all wallets
+    if (mode === 'all' && (isAccountsOrAdmin || isProcurementLeader)) {
       const wallets = await prisma.procurementWallet.findMany({
         include: {
           user: {
@@ -81,6 +83,21 @@ export async function GET(request: NextRequest) {
         orderBy: { name: 'asc' },
       })
 
+      const disbursementHistory = await prisma.procurementWalletTransaction.findMany({
+        where: { type: 'DISBURSEMENT' },
+        orderBy: { date: 'desc' },
+        take: 50,
+        include: {
+          wallet: {
+            include: {
+              user: { select: { id: true, fullName: true, email: true } },
+            },
+          },
+          financeAccount: { select: { id: true, name: true } },
+          submittedBy: { select: { id: true, fullName: true } },
+        },
+      })
+
       // Aggregate totals
       const totalAdvanceHeld = wallets.reduce((sum, w) => sum + w.advanceBalance, 0)
       const totalPendingReimbursement = wallets.reduce((sum, w) => sum + w.pendingReimbursement, 0)
@@ -92,6 +109,7 @@ export async function GET(request: NextRequest) {
           wallets,
           procurementUsers,
           financeAccounts,
+          disbursementHistory,
           metrics: {
             totalAdvanceHeld,
             totalPendingReimbursement,
@@ -102,7 +120,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Single wallet view
-    const effectiveUserId = (isAccountsOrAdmin && targetUserId) ? targetUserId : actor.id
+    const canViewOtherWallets = isAccountsOrAdmin || isProcurementLeader
+    const effectiveUserId = canViewOtherWallets && targetUserId ? targetUserId : actor.id
     const wallet = await getOrCreateProcurementWallet(effectiveUserId)
 
     const transactions = await prisma.procurementWalletTransaction.findMany({
@@ -153,6 +172,23 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    let teamWallets: Array<{
+      id: string
+      userId: string
+      advanceBalance: number
+      pendingReimbursement: number
+      totalSpent: number
+      user: { id: string; fullName: string; email: string }
+    }> = []
+    if (canViewOtherWallets) {
+      teamWallets = await prisma.procurementWallet.findMany({
+        include: {
+          user: { select: { id: true, fullName: true, email: true } },
+        },
+        orderBy: { user: { fullName: 'asc' } },
+      })
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -161,6 +197,8 @@ export async function GET(request: NextRequest) {
         activeProjects,
         financeAccounts,
         isAccountsOrAdmin,
+        isProcurementLeader,
+        teamWallets,
       },
     })
   } catch (error: unknown) {
