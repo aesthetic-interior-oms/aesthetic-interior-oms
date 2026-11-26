@@ -129,6 +129,33 @@ export async function GET(request: NextRequest) {
           orderBy: { date: "asc" },
         })
 
+        // Procurement EXPENSE wallet transactions for this project (date-filtered)
+        const procWalletWhere: Record<string, unknown> = {
+          leadId,
+          type: "EXPENSE",
+          status: { in: ["APPROVED", "SETTLED"] },
+        }
+        if (startDateStr) {
+          const s = new Date(startDateStr)
+          s.setHours(0, 0, 0, 0)
+          procWalletWhere.date = { ...(procWalletWhere.date as object | undefined ?? {}), gte: s }
+        }
+        if (endDateStr) {
+          const e = new Date(endDateStr)
+          e.setHours(23, 59, 59, 999)
+          procWalletWhere.date = { ...(procWalletWhere.date as object | undefined ?? {}), lte: e }
+        }
+
+        const procurementExpenses = await prisma.procurementWalletTransaction.findMany({
+          where: procWalletWhere as any,
+          include: {
+            purchaseOrder: { select: { id: true, poNo: true } },
+            submittedBy: { select: { id: true, fullName: true } },
+            wallet: { include: { user: { select: { id: true, fullName: true } } } },
+          },
+          orderBy: { date: "asc" },
+        })
+
         // All-time inflow total for lead
         const allTimeInflowAgg = await prisma.transaction.aggregate({
           where: { leadId, type: "INFLOW" },
@@ -136,12 +163,20 @@ export async function GET(request: NextRequest) {
         })
         const allTimeTotalPaid = allTimeInflowAgg._sum.amount ?? 0
 
-        // All-time outflow total for lead
+        // All-time outflow total for lead (Accounts only)
         const allTimeOutflowAgg = await prisma.transaction.aggregate({
           where: { leadId, type: "OUTFLOW" },
           _sum: { amount: true },
         })
-        const allTimeTotalOutflow = allTimeOutflowAgg._sum.amount ?? 0
+        const allTimeAccountsOutflow = allTimeOutflowAgg._sum.amount ?? 0
+
+        // All-time Procurement EXPENSE total for lead (no date filter)
+        const allTimeProcAgg = await prisma.procurementWalletTransaction.aggregate({
+          where: { leadId, type: "EXPENSE", status: { in: ["APPROVED", "SETTLED"] } },
+          _sum: { totalAmount: true },
+        })
+        const allTimeProcOutflow = allTimeProcAgg._sum.totalAmount ?? 0
+        const allTimeTotalOutflow = allTimeAccountsOutflow + allTimeProcOutflow
 
         const categoryTotals: Record<string, number> = {}
         let totalInflow = 0
@@ -155,6 +190,42 @@ export async function GET(request: NextRequest) {
             totalInflow += tx.amount
           }
         })
+
+        // Merge Procurement expenses into category totals and outflow
+        let procPeriodOutflow = 0
+        procurementExpenses.forEach((pe) => {
+          const cat = pe.category ?? "MATERIAL_COST"
+          categoryTotals[cat] = (categoryTotals[cat] || 0) + pe.totalAmount
+          totalOutflow += pe.totalAmount
+          procPeriodOutflow += pe.totalAmount
+        })
+
+        // Build virtual transaction rows for procurement expenses
+        const procTransactions = procurementExpenses.map((pe) => ({
+          id: pe.id,
+          date: pe.date,
+          type: "OUTFLOW" as const,
+          amount: pe.totalAmount,
+          category: pe.category ?? "MATERIAL_COST",
+          particular: pe.particular ?? (pe.purchaseOrder?.poNo ? `PO #${pe.purchaseOrder.poNo}` : "Procurement Purchase"),
+          financeAccount: null,
+          recordedBy: pe.submittedBy ?? pe.wallet?.user ?? null,
+          imageUrl: null,
+          voucherNo: null,
+          serialNo: null,
+          // Procurement-specific extras
+          source: "PROCUREMENT" as const,
+          poNo: pe.purchaseOrder?.poNo ?? null,
+          supplierName: pe.supplierName ?? null,
+          materialsSummary: pe.materialsSummary ?? null,
+          walletUserName: pe.wallet?.user?.fullName ?? null,
+        }))
+
+        // Merge and sort all transactions by date desc
+        const allTransactions = [
+          ...transactions.map((tx) => ({ ...tx, source: "ACCOUNTS" as const, poNo: null, supplierName: null, materialsSummary: null, walletUserName: null })),
+          ...procTransactions,
+        ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
         const lead = await prisma.lead.findUnique({
           where: { id: leadId },
@@ -234,7 +305,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           success: true,
           project: lead,
-          transactions,
+          transactions: allTransactions,
           categoryTotals,
           allTimeTotalPaid,
           allTimeTotalOutflow,
@@ -250,6 +321,7 @@ export async function GET(request: NextRequest) {
           paymentDue,
           profitEstimate: allTimeProfitEstimate,
           isFiltered,
+          procurementExpenseCount: procurementExpenses.length,
           visualizerRelease: {
             pending: pendingVisualizerRelease,
             canRequestAdminApproval: pendingVisualizerRelease && actorDepartments.has('ACCOUNTS'),

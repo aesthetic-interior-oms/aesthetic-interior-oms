@@ -75,12 +75,30 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Fetch Procurement EXPENSE wallet totals for all projects in one bulk query
+    const projectIds = projects.map((p) => p.id)
+    const procExpenses = await prisma.procurementWalletTransaction.groupBy({
+      by: ['leadId'],
+      where: {
+        leadId: { in: projectIds },
+        type: 'EXPENSE',
+        status: { in: ['APPROVED', 'SETTLED'] },
+      },
+      _sum: { totalAmount: true },
+    })
+    const procExpenseMap: Record<string, number> = {}
+    for (const row of procExpenses) {
+      if (row.leadId) procExpenseMap[row.leadId] = row._sum.totalAmount ?? 0
+    }
+
     // Auto-update statuses and build response data
     const statusUpdates: Promise<any>[] = []
 
     const data = projects.map((p) => {
       const paid = p.transactions.filter((t) => t.type === 'INFLOW').reduce((sum, t) => sum + t.amount, 0)
-      const totalOutflow = p.transactions.filter((t) => t.type === 'OUTFLOW').reduce((sum, t) => sum + t.amount, 0)
+      const accountsOutflow = p.transactions.filter((t) => t.type === 'OUTFLOW').reduce((sum, t) => sum + t.amount, 0)
+      const procOutflow = procExpenseMap[p.id] ?? 0
+      const totalOutflow = accountsOutflow + procOutflow
       const agreementValue = p.agreementValue ?? 0
       const due = agreementValue - paid
       const profitMargin = agreementValue - totalOutflow

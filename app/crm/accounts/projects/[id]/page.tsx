@@ -1493,9 +1493,10 @@ export default function ProjectDetailPage() {
                   <thead className="bg-muted text-xs uppercase tracking-wider text-muted-foreground font-bold border-b border-border">
                     <tr>
                       <th className="p-3">Date</th>
+                      <th className="p-3">Source</th>
                       <th className="p-3">Category</th>
                       <th className="p-3">Particulars</th>
-                      <th className="p-3">Account</th>
+                      <th className="p-3">Account / PO</th>
                       <th className="p-3">Recorder</th>
                       <th className="p-3 text-center">Image</th>
                       <th className="p-3 text-center">Receipt</th>
@@ -1516,19 +1517,35 @@ export default function ProjectDetailPage() {
                   <tbody className="divide-y divide-border">
                     {filteredTransactionsByDate.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="p-8 text-center text-muted-foreground">
+                        <td colSpan={10} className="p-8 text-center text-muted-foreground">
                           No transaction logs found for this project in the selected period.
                         </td>
                       </tr>
                     ) : (
-                      filteredTransactionsByDate.map((tx: any) => (
-                        <tr key={tx.id} className="hover:bg-muted/20 transition-colors">
+                      filteredTransactionsByDate.map((tx: any) => {
+                        const isProcurement = tx.source === 'PROCUREMENT'
+                        const matList: { name?: string; qty?: number; unit?: string }[] = Array.isArray(tx.materialsSummary)
+                          ? tx.materialsSummary
+                          : []
+                        return (
+                        <tr key={tx.id} className={`hover:bg-muted/20 transition-colors ${isProcurement ? 'bg-orange-50/30 dark:bg-orange-950/10' : ''}`}>
                           <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">
                             {new Date(tx.date).toLocaleDateString('en-GB', {
                               day: '2-digit',
                               month: 'short',
                               year: 'numeric',
                             })}
+                          </td>
+                          <td className="p-3">
+                            {isProcurement ? (
+                              <Badge className="text-[10px] px-1.5 py-0 bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-950/40 dark:text-orange-300 font-semibold">
+                                Procurement
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-blue-700 border-blue-300 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 font-semibold">
+                                Accounts
+                              </Badge>
+                            )}
                           </td>
                           <td className="p-3">
                             <Badge 
@@ -1539,13 +1556,29 @@ export default function ProjectDetailPage() {
                               {formatCategory(tx.category)}
                             </Badge>
                           </td>
-                          <td className="p-3 text-sm max-w-[150px] lg:max-w-[250px] truncate" title={tx.particular}>
-                            {tx.particular}
+                          <td className="p-3 text-sm max-w-[160px] lg:max-w-[220px]">
+                            <div className="truncate" title={tx.particular}>{tx.particular}</div>
+                            {isProcurement && tx.supplierName && (
+                              <div className="text-[10px] text-muted-foreground mt-0.5">Supplier: <span className="font-medium text-foreground">{tx.supplierName}</span></div>
+                            )}
+                            {isProcurement && matList.length > 0 && (
+                              <div className="text-[10px] text-muted-foreground mt-0.5">
+                                {matList.slice(0, 2).map((m, i) => (
+                                  <span key={i}>{i > 0 ? ', ' : ''}{m.name}{m.qty ? ` ×${m.qty}` : ''}{m.unit ? ` ${m.unit}` : ''}</span>
+                                ))}
+                                {matList.length > 2 && <span> +{matList.length - 2} more</span>}
+                              </div>
+                            )}
                           </td>
                           <td className="p-3 text-xs font-medium">
-                            {tx.financeAccount?.name || (tx.particular?.includes('Virtual Inventory') ? 'Virtual Inventory' : '—')}
+                            {isProcurement
+                              ? (tx.poNo ? `PO #${tx.poNo}` : (tx.walletUserName ? `Wallet: ${tx.walletUserName}` : '—'))
+                              : (tx.financeAccount?.name || (tx.particular?.includes('Virtual Inventory') ? 'Virtual Inventory' : '—'))
+                            }
                           </td>
-                          <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{tx.recordedBy?.fullName || 'Unknown'}</td>
+                          <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">
+                            {tx.recordedBy?.fullName || (isProcurement ? tx.walletUserName : 'Unknown') || 'Unknown'}
+                          </td>
                           <td className="p-3 text-xs text-center">
                             {tx.imageUrl ? (
                               <a href={tx.imageUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center text-blue-500 hover:text-blue-700 transition-colors">
@@ -1578,20 +1611,21 @@ export default function ProjectDetailPage() {
                             {tx.type === 'OUTFLOW' ? `${tx.amount.toLocaleString()} BDT` : '-'}
                           </td>
                         </tr>
-                      ))
+                        )
+                      })
                     )}
                   </tbody>
                   {filteredTransactionsByDate.length > 0 && (
                     <tfoot className="border-t-2 border-border bg-muted/50">
                       <tr className="cursor-pointer hover:bg-muted/80 transition-colors" onClick={() => setModalFilter({ type: 'INFLOW' })}>
-                        <td colSpan={7} className="p-3 font-bold text-sm text-right">Total Inflow</td>
+                        <td colSpan={8} className="p-3 font-bold text-sm text-right">Total Inflow</td>
                         <td className="p-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400 text-sm">
                           {activeTotalInflow.toLocaleString()} BDT
                         </td>
                         <td className="p-3 text-right text-muted-foreground">-</td>
                       </tr>
                       <tr className="border-t border-border cursor-pointer hover:bg-muted/80 transition-colors" onClick={() => setModalFilter({ type: 'OUTFLOW' })}>
-                        <td colSpan={7} className="p-3 font-bold text-sm text-right">Total Outflow</td>
+                        <td colSpan={8} className="p-3 font-bold text-sm text-right">Total Outflow</td>
                         <td className="p-3 text-right text-muted-foreground">-</td>
                         <td className="p-3 text-right font-bold tabular-nums text-rose-500 text-sm">
                           {activeTotalOutflow.toLocaleString()} BDT
@@ -1599,7 +1633,7 @@ export default function ProjectDetailPage() {
                       </tr>
                       {displayProfit !== null && (
                         <tr className="border-t-2 border-border">
-                          <td colSpan={7} className="p-3 font-bold text-sm text-right">
+                          <td colSpan={8} className="p-3 font-bold text-sm text-right">
                             {displayProfit >= 0 ? 'Total Profit' : 'Total Loss'}
                           </td>
                           <td colSpan={2} className={`p-3 text-right font-bold tabular-nums text-sm ${displayProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
