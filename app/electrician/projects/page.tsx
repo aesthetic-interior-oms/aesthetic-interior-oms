@@ -76,7 +76,7 @@ export default function ElectricianProjectsPage() {
             <FolderKanban className="w-7 h-7 text-yellow-500 shrink-0" />
             Project Sites
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Active client sites for electrical work</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Active client sites assigned to you for electrical work</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchProjects} disabled={refreshing} className="text-xs gap-1.5">
@@ -129,8 +129,8 @@ export default function ElectricianProjectsPage() {
       ) : filteredProjects.length === 0 ? (
         <div className="p-16 text-center space-y-2 border rounded-xl bg-card">
           <FolderKanban className="w-10 h-10 text-muted-foreground/40 mx-auto" />
-          <h3 className="text-sm font-semibold">No project sites found</h3>
-          <p className="text-xs text-muted-foreground">No projects matched your search criteria.</p>
+          <h3 className="text-sm font-semibold">No assigned project sites found</h3>
+          <p className="text-xs text-muted-foreground">No assigned projects matched your search criteria.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

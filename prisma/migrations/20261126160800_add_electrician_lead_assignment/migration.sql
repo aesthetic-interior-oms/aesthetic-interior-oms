@@ -1,0 +1,1 @@
+ALTER TYPE "LeadAssignmentDepartment" ADD VALUE IF NOT EXISTS 'ELECTRICIAN';

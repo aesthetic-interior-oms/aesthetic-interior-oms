@@ -1287,14 +1287,38 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/electrician/projects',
         },
         {
-          icon: Zap,
-          label: 'Electrical Requisition',
-          href: '/electrician/requisition/new',
-        },
-        {
           icon: Wrench,
           label: 'Site Work Log',
           href: '/electrician/site-work',
+        },
+      ],
+    },
+  ],
+  'Electric Engineer': [
+    {
+      id: 'electric-engineer-overview',
+      label: 'Electric Engineer',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/electric-engineer/dashboard',
+        },
+        {
+          icon: Zap,
+          label: 'Electrical Requisition',
+          href: '/electric-engineer/requisition',
+        },
+        {
+          icon: FolderKanban,
+          label: 'Projects',
+          href: '/electric-engineer/projects',
+        },
+        {
+          icon: Settings,
+          label: 'Settings',
+          href: '/electric-engineer/settings',
         },
       ],
     },
@@ -1352,6 +1376,14 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
     pathname.startsWith('/electrician') ||
     Boolean(role && role.toUpperCase().includes('ELECTRICIAN'))
 
+  const isElectricEngineer =
+    pathname.startsWith('/electric-engineer') ||
+    Boolean(
+      role &&
+        (role.toUpperCase().includes('ELECTRIC_ENGINEER') ||
+          role.toUpperCase().includes('ELECTRIC ENGINEER')),
+    )
+
   const isSpecialistDesignConsultants =
     role === 'Specialist Design Consultants' ||
     role === 'SPECIALIST_DESIGN_CONSULTANTS'
@@ -1388,6 +1420,10 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
 
     if (isElectrician) {
       return addConveyanceLink(navigationGroups['Electrician'] || [])
+    }
+
+    if (isElectricEngineer) {
+      return addConveyanceLink(navigationGroups['Electric Engineer'] || [])
     }
 
     if (isBoq) {

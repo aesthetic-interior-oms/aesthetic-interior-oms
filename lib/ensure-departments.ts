@@ -17,6 +17,7 @@ export const STANDARD_DEPARTMENTS = [
   { name: 'PROJECT_ENGINEER', description: 'Project Engineer department' },
   { name: 'SITE_ENGINEER', description: 'Site Engineer department' },
   { name: 'ELECTRICIAN', description: 'Electrician department' },
+  { name: 'ELECTRIC_ENGINEER', description: 'Electric Engineer department' },
   { name: 'FACTORY_MANAGER', description: 'Factory Manager department' },
   { name: 'IMPLEMENTATION_TEAM', description: 'Implementation Team department' },
   // Operations departments

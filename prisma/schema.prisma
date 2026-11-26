@@ -1166,6 +1166,7 @@ enum LeadAssignmentDepartment {
   PROCUREMENT
   BOQ
   SITE_ENGINEER
+  ELECTRICIAN
 }
 
 enum LeadStage {

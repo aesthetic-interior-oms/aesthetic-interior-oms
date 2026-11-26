@@ -54,6 +54,7 @@ function resolveDepartmentRole(deptNames: string[], roleNames: string[]): string
     return 'Human Resources'
   }
   if (normRoles.includes('ELECTRICIAN') || normDepts.includes('ELECTRICIAN')) return 'Electrician'
+  if (normRoles.includes('ELECTRIC_ENGINEER') || normDepts.includes('ELECTRIC_ENGINEER')) return 'Electric Engineer'
 
   return deptNames[0] || 'JR CRM'
 }
