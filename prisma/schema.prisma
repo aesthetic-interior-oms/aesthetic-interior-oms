@@ -1727,6 +1727,9 @@ model MaterialRequisitionItem {
   unit                String                  @default("Pcs")
   productionPhase     String?
   remarks             String?
+  status              MaterialItemStatus      @default(NOTED)
+  purchasedQuantity   Float?
+  purchasedAt         DateTime?
 
   requisition         MaterialRequisition     @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
   stockItem           StockItem?              @relation(fields: [stockItemId], references: [id])
@@ -1735,6 +1738,7 @@ model MaterialRequisitionItem {
   @@index([requisitionId])
   @@index([stockItemId])
   @@index([workCategory])
+  @@index([status])
 }
 
 model MaterialIndent {
@@ -1781,6 +1785,15 @@ model MaterialIndentItem {
 enum MaterialIndentStatus {
   ISSUED
   CANCELLED
+}
+
+enum MaterialItemStatus {
+  NOTED
+  BILLED
+  PURCHASED
+  DELIVERED
+  APPLIED
+  STORED
 }
 
 model BoqSavedAccessoryItem {

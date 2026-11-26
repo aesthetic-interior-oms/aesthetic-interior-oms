@@ -29,8 +29,10 @@ import {
   RefreshCw,
   Search,
   Trash2,
+  CheckCircle2,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { MaterialStatusBadge } from '@/components/procurement/material-status-badge'
 
 type IndentItemRow = {
   id: string
@@ -46,6 +48,8 @@ type IndentItemRow = {
     workCategory: string
     finalQuantity: number
     unit: string
+    status?: string
+    purchasedQuantity?: number | null
   }
 }
 
@@ -110,6 +114,20 @@ export default function ProcurementProjectIndentsPage() {
     }>
   } | null>(null)
   const [savingEdit, setSavingEdit] = useState(false)
+  const [completingIndent, setCompletingIndent] = useState<IndentRecord | null>(null)
+  const [verifyItems, setVerifyItems] = useState<
+    Array<{
+      indentItemId: string
+      materialName: string
+      unit: string
+      requestedQty: number
+      actualQuantity: string
+      unitPrice: number
+      purchased: boolean
+    }>
+  >([])
+  const [verifyNotes, setVerifyNotes] = useState('')
+  const [submittingVerify, setSubmittingVerify] = useState(false)
 
   const fetchIndents = useCallback(async (isRefresh = false) => {
     try {
@@ -268,6 +286,59 @@ export default function ProcurementProjectIndentsPage() {
       toast.error(error instanceof Error ? error.message : 'Failed to remove product')
     } finally {
       setRemovingItemId(null)
+    }
+  }
+
+  const openVerifyModal = (indent: IndentRecord) => {
+    setCompletingIndent(indent)
+    setVerifyNotes('')
+    setVerifyItems(
+      indent.items.map((row) => ({
+        indentItemId: row.id,
+        materialName: row.requisitionItem.materialName,
+        unit: row.requisitionItem.unit,
+        requestedQty: Number(row.quantity),
+        actualQuantity: String(Number(row.quantity)),
+        unitPrice: Number(row.unitPrice),
+        purchased: true,
+      })),
+    )
+  }
+
+  const handleCompletePurchase = async () => {
+    if (!completingIndent) return
+    setSubmittingVerify(true)
+    try {
+      const payload = {
+        action: completingIndent.purchaseOrder ? 'FULFILLED' : 'COMPLETE_PURCHASE',
+        notes: verifyNotes.trim() || undefined,
+        verifiedItems: verifyItems.map((item) => ({
+          indentItemId: item.indentItemId,
+          purchased: item.purchased,
+          actualQuantity: item.purchased ? Number(item.actualQuantity) : undefined,
+        })),
+      }
+      const url = completingIndent.purchaseOrder
+        ? `/api/procurement/purchase-orders/${completingIndent.purchaseOrder.id}`
+        : `/api/procurement/indents/${completingIndent.id}`
+
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json.error || 'Failed to complete purchase')
+      }
+      toast.success('Purchase Order completed & material statuses updated!')
+      setCompletingIndent(null)
+      setVerifyItems([])
+      await fetchIndents(true)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to complete purchase')
+    } finally {
+      setSubmittingVerify(false)
     }
   }
 
@@ -474,6 +545,17 @@ export default function ProcurementProjectIndentsPage() {
                               <Pencil className="w-3 h-3" />
                               Edit
                             </Button>
+                            {indent.purchaseOrder?.status !== 'FULFILLED' && indent.items.length > 0 && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                onClick={() => openVerifyModal(indent)}
+                              >
+                                <CheckCircle2 className="w-3 h-3" />
+                                Verify &amp; Complete Purchase
+                              </Button>
+                            )}
                           </div>
                         </div>
 
@@ -500,8 +582,15 @@ export default function ProcurementProjectIndentsPage() {
                                 indent.items.map((row) => (
                                   <tr key={row.id} className="hover:bg-muted/20">
                                     <td className="py-2 px-3">
-                                      <div className="font-semibold text-foreground">
-                                        {row.requisitionItem.materialName}
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className="font-semibold text-foreground">
+                                          {row.requisitionItem.materialName}
+                                        </span>
+                                        <MaterialStatusBadge
+                                          status={row.requisitionItem.status || 'BILLED'}
+                                          purchasedQuantity={row.requisitionItem.purchasedQuantity}
+                                          unit={row.requisitionItem.unit}
+                                        />
                                       </div>
                                       {row.requisitionItem.specifications && (
                                         <div className="text-[11px] text-muted-foreground line-clamp-1">
@@ -720,6 +809,153 @@ export default function ProcurementProjectIndentsPage() {
             </Button>
             <Button type="button" size="sm" onClick={() => void handleSaveEdit()} disabled={savingEdit}>
               {savingEdit ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Verify & Complete Purchase Modal */}
+      <Dialog
+        open={Boolean(completingIndent)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCompletingIndent(null)
+            setVerifyItems([])
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              Verify &amp; Complete Purchase — {completingIndent?.purchaseOrder?.poNo || completingIndent?.indentNo}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Verify purchased materials. Unchecked items are removed from the Indent/PO and returned to the Requisition List. Quantities can be adjusted lower or higher.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 overflow-y-auto pr-1 py-2 text-xs">
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead className="bg-muted/50 border-b text-[11px]">
+                  <tr>
+                    <th className="py-2 px-3 w-20 text-center">Purchased?</th>
+                    <th className="py-2 px-3">Material</th>
+                    <th className="py-2 px-2 text-right">Billed Qty</th>
+                    <th className="py-2 px-2 w-28">Actual Qty</th>
+                    <th className="py-2 px-2 text-right">Unit Price</th>
+                    <th className="py-2 px-3 text-right">Final Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {verifyItems.map((item, idx) => {
+                    const qtyNum = Number(item.actualQuantity) || 0
+                    const lineTotal = item.purchased ? qtyNum * item.unitPrice : 0
+                    return (
+                      <tr
+                        key={item.indentItemId}
+                        className={item.purchased ? '' : 'opacity-50 bg-muted/30'}
+                      >
+                        <td className="py-2 px-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={item.purchased}
+                            onChange={(e) => {
+                              const next = [...verifyItems]
+                              next[idx] = { ...item, purchased: e.target.checked }
+                              setVerifyItems(next)
+                            }}
+                            className="h-4 w-4 rounded border-border cursor-pointer"
+                          />
+                        </td>
+                        <td className="py-2 px-3">
+                          <div className="font-semibold text-foreground">{item.materialName}</div>
+                          {!item.purchased && (
+                            <div className="text-[10px] text-amber-600 font-medium">
+                              Will be removed &amp; returned to Requisition List
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono text-muted-foreground">
+                          {item.requestedQty} {item.unit}
+                        </td>
+                        <td className="py-2 px-2">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              min="0.001"
+                              step="any"
+                              disabled={!item.purchased}
+                              value={item.actualQuantity}
+                              onChange={(e) => {
+                                const next = [...verifyItems]
+                                next[idx] = { ...item, actualQuantity: e.target.value }
+                                setVerifyItems(next)
+                              }}
+                              className="h-7 text-xs font-mono w-20"
+                            />
+                            <span className="text-[10px] text-muted-foreground">{item.unit}</span>
+                          </div>
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono">
+                          ৳{item.unitPrice.toLocaleString('en-BD')}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono font-bold">
+                          {item.purchased ? `৳${lineTotal.toLocaleString('en-BD')}` : 'Returned'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Purchase Completion Note (Optional)</Label>
+              <Textarea
+                placeholder="Optional notes on actual purchase..."
+                value={verifyNotes}
+                onChange={(e) => setVerifyNotes(e.target.value)}
+                rows={2}
+                className="text-xs"
+              />
+            </div>
+
+            <div className="flex justify-end font-mono text-sm font-bold pt-1">
+              Final Purchase Total: ৳
+              {(
+                verifyItems.reduce(
+                  (s, i) => s + (i.purchased ? (Number(i.actualQuantity) || 0) * i.unitPrice : 0),
+                  0,
+                ) +
+                Number(completingIndent?.transportCost || 0) +
+                Number(completingIndent?.otherCosts || 0)
+              ).toLocaleString('en-BD')}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCompletingIndent(null)
+                setVerifyItems([])
+              }}
+              disabled={submittingVerify}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => void handleCompletePurchase()}
+              disabled={submittingVerify}
+            >
+              {submittingVerify ? 'Completing...' : 'Complete Purchase Order'}
             </Button>
           </DialogFooter>
         </DialogContent>

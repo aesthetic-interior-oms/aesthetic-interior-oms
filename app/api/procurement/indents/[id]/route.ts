@@ -98,6 +98,126 @@ export async function PATCH(
         throw new Error('You do not have permission to modify this indent')
       }
 
+      if (body.action === 'COMPLETE_PURCHASE') {
+        const verifiedItems = Array.isArray(body.verifiedItems)
+          ? (body.verifiedItems as Array<{
+              indentItemId: string
+              purchased: boolean
+              actualQuantity?: number
+            }>)
+          : null
+
+        const now = new Date()
+        const verifyMap = new Map((verifiedItems ?? []).map((v) => [v.indentItemId, v]))
+
+        for (const indentItem of existing.items) {
+          const decision = verifyMap.get(indentItem.id)
+
+          if (verifiedItems && decision && decision.purchased === false) {
+            await tx.materialIndentItem.delete({
+              where: { id: indentItem.id },
+            })
+
+            const remainingIndentCount = await tx.materialIndentItem.count({
+              where: { requisitionItemId: indentItem.requisitionItemId },
+            })
+
+            if (remainingIndentCount === 0) {
+              await tx.materialRequisitionItem.update({
+                where: { id: indentItem.requisitionItemId },
+                data: {
+                  status: 'NOTED',
+                  purchasedQuantity: null,
+                  purchasedAt: null,
+                },
+              })
+            }
+          } else {
+            let finalQty = Number(indentItem.quantity)
+            if (decision && decision.actualQuantity !== undefined && decision.actualQuantity !== null) {
+              const parsedQty = Number(decision.actualQuantity)
+              if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
+                throw new Error(
+                  `Invalid purchased quantity for ${indentItem.requisitionItem.materialName}`,
+                )
+              }
+              finalQty = parsedQty
+            }
+
+            if (Math.abs(finalQty - Number(indentItem.quantity)) > 0.0001) {
+              const unitPrice = Number(indentItem.unitPrice)
+              await tx.materialIndentItem.update({
+                where: { id: indentItem.id },
+                data: {
+                  quantity: new Prisma.Decimal(finalQty),
+                  total: new Prisma.Decimal(finalQty * unitPrice),
+                },
+              })
+            }
+
+            await tx.materialRequisitionItem.update({
+              where: { id: indentItem.requisitionItemId },
+              data: {
+                status: 'PURCHASED',
+                purchasedQuantity: finalQty,
+                purchasedAt: now,
+              },
+            })
+          }
+        }
+
+        const allLines = await tx.materialIndentItem.findMany({
+          where: { indentId: existing.id },
+        })
+        const subtotal = allLines.reduce((sum, row) => sum + Number(row.total), 0)
+        const total =
+          subtotal + Number(existing.transportCost) + Number(existing.otherCosts)
+
+        const saved = await tx.materialIndent.update({
+          where: { id: existing.id },
+          data: {
+            subtotal: new Prisma.Decimal(subtotal),
+            total: new Prisma.Decimal(total),
+            ...(typeof body.notes === 'string' && body.notes.trim()
+              ? {
+                  notes: existing.notes
+                    ? `${existing.notes}\n${body.notes.trim()}`
+                    : body.notes.trim(),
+                }
+              : {}),
+          },
+          include: {
+            items: {
+              include: {
+                requisitionItem: {
+                  select: {
+                    id: true,
+                    materialName: true,
+                    specifications: true,
+                    workCategory: true,
+                    finalQuantity: true,
+                    unit: true,
+                    status: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+
+        if (existing.purchaseOrder) {
+          await tx.purchaseOrder.update({
+            where: { id: existing.purchaseOrder.id },
+            data: {
+              status: 'FULFILLED',
+              totalAmount: Number(saved.total),
+            },
+          })
+        }
+
+        return saved
+      }
+
       if (body.action === 'ADD_ITEMS') {
         if (!Array.isArray(body.items) || body.items.length === 0) {
           throw new Error('Select at least one requisition item to add')
@@ -192,6 +312,14 @@ export async function PATCH(
             })
           }
         }
+
+        await tx.materialRequisitionItem.updateMany({
+          where: {
+            id: { in: reqItems.map((i) => i.id) },
+            status: 'NOTED',
+          },
+          data: { status: 'BILLED' },
+        })
 
         const allLines = await tx.materialIndentItem.findMany({
           where: { indentId: existing.id },

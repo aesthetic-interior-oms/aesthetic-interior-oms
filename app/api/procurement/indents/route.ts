@@ -60,6 +60,9 @@ export async function GET(request: Request) {
               workCategory: true,
               finalQuantity: true,
               unit: true,
+              status: true,
+              purchasedQuantity: true,
+              purchasedAt: true,
               variantAttributes: true,
             },
           },
@@ -165,6 +168,15 @@ export async function POST(request: Request) {
           },
         })
       }
+
+      // Mark included requisition items as BILLED (if currently NOTED)
+      await tx.materialRequisitionItem.updateMany({
+        where: {
+          id: { in: requisition.items.map((i) => i.id) },
+          status: 'NOTED',
+        },
+        data: { status: 'BILLED' },
+      })
 
       return createdIndent
     })

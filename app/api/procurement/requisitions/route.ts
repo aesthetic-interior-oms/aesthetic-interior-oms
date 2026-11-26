@@ -45,6 +45,9 @@ export async function GET() {
         include: {
           items: true,
           createdBy: { select: { fullName: true } },
+          purchaseOrder: {
+            select: { id: true, poNo: true, status: true, totalAmount: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
       },

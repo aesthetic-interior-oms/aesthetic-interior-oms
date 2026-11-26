@@ -492,6 +492,12 @@ export async function saveMaterialRequisition(input: {
     let requisitionId: string
     let finalRequisitionNo = requisitionNo
 
+    let lockedItems: Array<{
+      materialName: string
+      workCategory: string
+      quotationLineItemId: string | null
+    }> = []
+
     if (targetRequisition) {
       // If target batch is in procurement or fulfilled and user tried to overwrite it in-place:
       if (targetRequisition.status === 'IN_PROCUREMENT' || targetRequisition.status === 'FULFILLED') {
@@ -519,9 +525,26 @@ export async function saveMaterialRequisition(input: {
             ...(input.status === 'SUBMITTED' ? { rejectionReason: null } : {}),
           },
         })
-        // Clear old items and recreate
+        // Preserve materials that are already PURCHASED (or DELIVERED/APPLIED/STORED) so BOQ cannot modify or delete them
+        const lockedStatuses = ['PURCHASED', 'DELIVERED', 'APPLIED', 'STORED'] as const
+        lockedItems = await prisma.materialRequisitionItem.findMany({
+          where: {
+            requisitionId: targetRequisition.id,
+            status: { in: [...lockedStatuses] },
+          },
+          select: {
+            materialName: true,
+            workCategory: true,
+            quotationLineItemId: true,
+          },
+        })
+
+        // Clear only unlocked items
         await prisma.materialRequisitionItem.deleteMany({
-          where: { requisitionId: targetRequisition.id },
+          where: {
+            requisitionId: targetRequisition.id,
+            status: { notIn: [...lockedStatuses] },
+          },
         })
         requisitionId = targetRequisition.id
         finalRequisitionNo = targetRequisition.requisitionNo
@@ -569,10 +592,22 @@ export async function saveMaterialRequisition(input: {
       }
     }
 
-    // Insert line items
-    if (requisitionId && input.items.length > 0) {
+    // Insert unlocked line items (skipping any locked PURCHASED+ items that were preserved)
+    const lockedKeys = new Set(
+      lockedItems.map(
+        (li) => `${li.workCategory}::${li.materialName}::${li.quotationLineItemId ?? ''}`,
+      ),
+    )
+    const itemsToInsert = input.items.filter(
+      (item) =>
+        !lockedKeys.has(
+          `${item.workCategory}::${item.materialName}::${item.quotationLineItemId ?? ''}`,
+        ),
+    )
+
+    if (requisitionId && itemsToInsert.length > 0) {
       await prisma.materialRequisitionItem.createMany({
-        data: input.items.map((item) => {
+        data: itemsToInsert.map((item) => {
           const parsedNetQuantity = Number(item.netQuantity)
           const netQuantity = Number.isFinite(parsedNetQuantity) ? parsedNetQuantity : 1
           const parsedWastagePercent = Number(item.wastagePercent)

@@ -45,6 +45,8 @@ type RequisitionItem = {
   unit: string
   productionPhase: string | null
   remarks: string | null
+  status?: string
+  purchasedQuantity?: number | null
   indentItems: IndentBillingRecord[]
 }
 

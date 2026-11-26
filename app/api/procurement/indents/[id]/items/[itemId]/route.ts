@@ -67,6 +67,21 @@ export async function DELETE(
         where: { id: targetLine.id },
       })
 
+      // If this requisition item has no other indent items, reset its status back to NOTED
+      const otherIndentItemsCount = await tx.materialIndentItem.count({
+        where: { requisitionItemId: targetLine.requisitionItemId },
+      })
+      if (otherIndentItemsCount === 0) {
+        await tx.materialRequisitionItem.update({
+          where: { id: targetLine.requisitionItemId },
+          data: {
+            status: 'NOTED',
+            purchasedQuantity: null,
+            purchasedAt: null,
+          },
+        })
+      }
+
       const remainingLines = await tx.materialIndentItem.findMany({
         where: { indentId },
       })
