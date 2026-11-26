@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
-import { hasProcurementLeaderRole, hasProcurementRole } from '@/lib/procurement-roles'
+import { hasProcurementRole, isProcurementLeader } from '@/lib/procurement-roles'
 import { Prisma } from '@/generated/prisma/client'
 
 export const dynamic = 'force-dynamic'
@@ -16,10 +16,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Procurement access required' }, { status: 403 })
   }
 
-  const isLeader =
-    hasProcurementLeaderRole(roles) ||
-    departments.some((d) => d.toUpperCase() === 'ADMIN') ||
-    roles.some((r) => r.toUpperCase() === 'ADMIN')
+  const isLeader = isProcurementLeader(roles, departments)
 
   const { searchParams } = new URL(request.url)
   const leadId = searchParams.get('leadId')
@@ -103,9 +100,14 @@ export async function POST(request: Request) {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`material-indent-${year}`}))`
       const requisition = await tx.materialRequisition.findUnique({ where: { id: body.requisitionId }, include: { items: { where: { id: { in: [...requested.keys()] } }, include: { indentItems: true } } } })
       if (!requisition || !['SUBMITTED', 'IN_PROCUREMENT'].includes(requisition.status)) throw new Error('Requisition is not available for billing')
-      const isLeader = (auth.actorRoles ?? []).some((r) => r.toUpperCase().includes('PROCUREMENT_TEAM_LEADER'))
-      const isAdmin = (auth.actorRoles ?? []).some((r) => r.toUpperCase() === 'ADMIN') || auth.actor.userDepartments.some((d) => d.toUpperCase() === 'ADMIN')
-      if (!isLeader && !isAdmin && requisition.procurementAssigneeId !== auth.actorUserId) throw new Error('This requisition is assigned to another procurement member')
+      const isLeader = isProcurementLeader(auth.actorRoles, auth.actor.userDepartments)
+      if (!isLeader && requisition.procurementAssigneeId !== auth.actorUserId) {
+        throw new Error(
+          requisition.procurementAssigneeId
+            ? 'This requisition is assigned to another procurement member'
+            : 'This requisition is not assigned to any procurement member yet',
+        )
+      }
       if (requisition.items.length !== requested.size) throw new Error('One or more selected items do not belong to this requisition')
       for (const item of requisition.items) {
         const alreadyBilled = item.indentItems.reduce((sum, row) => sum + Number(row.quantity), 0)

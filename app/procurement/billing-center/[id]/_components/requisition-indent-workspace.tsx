@@ -236,6 +236,7 @@ interface RequisitionIndentWorkspaceProps {
   }
   teamMembers: Array<{ id: string; fullName: string; email?: string | null }>
   isLeader: boolean
+  canAssign?: boolean
   defaultVendors?: VendorOption[]
 }
 
@@ -260,6 +261,7 @@ export function RequisitionIndentWorkspace({
   requisition,
   teamMembers,
   isLeader,
+  canAssign = isLeader,
   defaultVendors = [],
 }: RequisitionIndentWorkspaceProps) {
   const router = useRouter()
@@ -878,7 +880,7 @@ export function RequisitionIndentWorkspace({
 
         {/* Assigned Procurement Officer */}
         <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
-          {isLeader ? (
+          {canAssign ? (
             <div className="flex items-center gap-2 bg-background border border-border rounded-lg px-3 py-1.5 shadow-2xs">
               <UserRound className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               <span className="text-[11px] font-medium text-muted-foreground shrink-0">
@@ -904,7 +906,7 @@ export function RequisitionIndentWorkspace({
               <span>
                 Procurement Handler:{' '}
                 <strong className="text-foreground">
-                  {requisition.procurementAssignee?.fullName ?? 'Procurement Team'}
+                  {requisition.procurementAssignee?.fullName ?? 'Unassigned'}
                 </strong>
               </span>
             </div>

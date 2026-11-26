@@ -42,9 +42,24 @@ export function hasProcurementRole(roleNames?: string[] | null, departments?: st
   )
 }
 
+/** Returns true when the user holds the Project Coordinator role or belongs to the Project Coordinator department. */
+export function isProjectCoordinator(roleNames?: string[] | null, departments?: string[] | null): boolean {
+  const roles = normalized(roleNames)
+  const depts = normalized(departments)
+  return (
+    Array.from(roles).some((r) => r.includes('PROJECT_COORDINATOR') || r.includes('PROJECT_CORDINATOR')) ||
+    Array.from(depts).some((d) => d.includes('PROJECT_COORDINATOR') || d.includes('PROJECT_CORDINATOR'))
+  )
+}
+
 /** Returns true when the user has authority to delegate and oversee procurement tasks (Leader or Admin). */
 export function isProcurementLeader(roleNames?: string[] | null, departments?: string[] | null): boolean {
   const roles = normalized(roleNames)
   const depts = normalized(departments)
   return roles.has(PROCUREMENT_TEAM_LEADER_ROLE) || roles.has('ADMIN') || depts.has('ADMIN')
+}
+
+/** Returns true when the user can assign procurement members to requisitions (PC, Procurement Leader, or Admin). */
+export function canAssignProcurement(roleNames?: string[] | null, departments?: string[] | null): boolean {
+  return isProcurementLeader(roleNames, departments) || isProjectCoordinator(roleNames, departments)
 }

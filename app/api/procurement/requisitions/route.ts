@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
-import { hasProcurementLeaderRole, hasProcurementRole } from '@/lib/procurement-roles'
+import { canAssignProcurement, hasProcurementRole } from '@/lib/procurement-roles'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,14 +10,10 @@ export async function GET() {
   if (!auth.ok) return auth.response
   const roles = auth.actorRoles ?? []
   const departments = auth.actor.userDepartments ?? []
-  if (!hasProcurementRole(roles, departments)) {
+  const leader = canAssignProcurement(roles, departments)
+  if (!hasProcurementRole(roles, departments) && !leader) {
     return NextResponse.json({ error: 'Procurement access required' }, { status: 403 })
   }
-
-  const leader =
-    hasProcurementLeaderRole(roles) ||
-    departments.some((d) => d.toUpperCase() === 'ADMIN') ||
-    roles.some((r) => r.toUpperCase() === 'ADMIN')
 
   const rows = await prisma.materialRequisition.findMany({
     where: {
@@ -110,13 +106,13 @@ export async function PATCH(request: Request) {
   if (!auth.ok) return auth.response
   const roles = auth.actorRoles ?? []
   const depts = auth.actor.userDepartments ?? []
-  const leader =
-    hasProcurementLeaderRole(roles) ||
-    depts.some((d) => d.toUpperCase() === 'ADMIN') ||
-    roles.some((r) => r.toUpperCase() === 'ADMIN')
+  const canAssign = canAssignProcurement(roles, depts)
 
-  if (!leader) {
-    return NextResponse.json({ error: 'Only a Procurement Team Leader can assign requisitions' }, { status: 403 })
+  if (!canAssign) {
+    return NextResponse.json(
+      { error: 'Only a Project Coordinator, Procurement Team Leader, or Admin can assign requisitions' },
+      { status: 403 },
+    )
   }
 
   const body = await request.json().catch(() => null)
@@ -146,7 +142,7 @@ export async function PATCH(request: Request) {
     data: {
       procurementAssigneeId: body.assigneeId,
       procurementAssignedAt: body.assigneeId ? new Date() : null,
-      status: 'IN_PROCUREMENT',
+      ...(body.assigneeId ? { status: 'IN_PROCUREMENT' } : {}),
     },
   })
 

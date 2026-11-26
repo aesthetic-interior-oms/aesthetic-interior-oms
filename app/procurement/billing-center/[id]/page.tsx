@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@clerk/nextjs/server'
-import { isProcurementLeader } from '@/lib/procurement-roles'
+import { canAssignProcurement, isProcurementLeader } from '@/lib/procurement-roles'
 import { RequisitionIndentWorkspace } from './_components/requisition-indent-workspace'
 
 export const revalidate = 0
@@ -119,9 +119,10 @@ export default async function BillingRequisitionDetailPage({
   const userRoles = dbUser?.userRoles.map((r) => r.role.name) || []
   const userDepts = dbUser?.userDepartments.map((d) => d.department.name) || []
   const isLeader = isProcurementLeader(userRoles, userDepts)
+  const canAssign = canAssignProcurement(userRoles, userDepts)
 
   let teamMembers: Array<{ id: string; fullName: string; email?: string | null }> = []
-  if (isLeader) {
+  if (canAssign) {
     teamMembers = await prisma.user.findMany({
       where: {
         isActive: true,
@@ -136,6 +137,7 @@ export default async function BillingRequisitionDetailPage({
                       'Procurement',
                       'Procurement & Supply Chain',
                       'PROCUREMENT_DEPARTMENT',
+                      'PROCUREMENT_SUPPLY_CHAIN',
                     ],
                   },
                 },
@@ -326,6 +328,7 @@ export default async function BillingRequisitionDetailPage({
         requisition={requisition}
         teamMembers={teamMembers}
         isLeader={isLeader}
+        canAssign={canAssign}
         defaultVendors={suppliers}
       />
     </div>

@@ -52,6 +52,9 @@ export default async function ProcurementBillingCenterPage({ searchParams }: Bil
         createdBy: {
           select: { fullName: true },
         },
+        procurementAssignee: {
+          select: { id: true, fullName: true },
+        },
         _count: {
           select: { items: true },
         },
@@ -225,6 +228,7 @@ export default async function ProcurementBillingCenterPage({ searchParams }: Bil
                   <th className="py-2.5 px-4">Client / Project</th>
                   <th className="py-2.5 px-4">Materials</th>
                   <th className="py-2.5 px-4">Status</th>
+                  <th className="py-2.5 px-4">Assigned To</th>
                   <th className="py-2.5 px-4">Origin / BOQ</th>
                   <th className="py-2.5 px-4">Date</th>
                   <th className="py-2.5 px-4 text-right">Action</th>
@@ -280,6 +284,13 @@ export default async function ProcurementBillingCenterPage({ searchParams }: Bil
                       </td>
                       <td className="py-3 px-4">
                         {statusBadge}
+                      </td>
+                      <td className="py-3 px-4 text-xs">
+                        {req.procurementAssignee ? (
+                          <span className="font-medium text-foreground">{req.procurementAssignee.fullName}</span>
+                        ) : (
+                          <span className="text-muted-foreground italic">Unassigned</span>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-xs text-muted-foreground">
                         {req.createdBy.fullName || 'BOQ Team'}
