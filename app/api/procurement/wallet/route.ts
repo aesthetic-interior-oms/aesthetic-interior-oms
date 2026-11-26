@@ -114,6 +114,9 @@ export async function GET(request: NextRequest) {
         materialRequisition: {
           select: { id: true, requisitionNo: true },
         },
+        purchaseOrder: {
+          select: { id: true, poNo: true },
+        },
         financeAccount: {
           select: { id: true, name: true },
         },

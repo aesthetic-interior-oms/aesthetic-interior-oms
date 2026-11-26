@@ -138,6 +138,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/accounts/procurement-wallets',
         },
         {
+          icon: Receipt,
+          label: 'Purchase Orders',
+          href: '/crm/accounts/purchase-orders',
+        },
+        {
           icon: FolderKanban,
           label: 'Production Module',
           href: '/crm/production',
@@ -734,6 +739,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/accounts/procurement-wallets',
         },
         {
+          icon: Receipt,
+          label: 'Purchase Orders',
+          href: '/crm/accounts/purchase-orders',
+        },
+        {
           icon: FolderKanban,
           label: 'Production Module',
           href: '/crm/production',
@@ -835,6 +845,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: Receipt,
           label: 'Conveyance Verification',
           href: '/crm/pc/conveyance',
+        },
+        {
+          icon: CheckSquare,
+          label: 'PO Approvals',
+          href: '/crm/pc/po-approvals',
         },
       ],
     },
@@ -1212,6 +1227,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: Package,
           label: 'Project Indents',
           href: '/procurement/indents',
+        },
+        {
+          icon: CheckSquare,
+          label: 'PO Approvals',
+          href: '/procurement/po-approvals',
         },
         {
           icon: FolderKanban,

@@ -545,7 +545,8 @@ export default function ProcurementProjectIndentsPage() {
                               <Pencil className="w-3 h-3" />
                               Edit
                             </Button>
-                            {indent.purchaseOrder?.status !== 'FULFILLED' && indent.items.length > 0 && (
+                            {(!indent.purchaseOrder || indent.purchaseOrder.status === 'APPROVED') &&
+                              indent.items.length > 0 && (
                               <Button
                                 type="button"
                                 size="sm"

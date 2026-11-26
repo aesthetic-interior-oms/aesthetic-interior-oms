@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
-import { canCreatePO, canViewPO } from '@/lib/purchase-order'
+import { canCreatePO, canVerifyPOLeadStage, canViewPO, isAccountsUser } from '@/lib/purchase-order'
+import { notifyPOLeadVerifiers } from '@/lib/po-notifications'
 
 export const runtime = 'nodejs'
 
@@ -19,26 +20,40 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams
   const leadId = params.get('leadId')
   const indentId = params.get('indentId')
+  const statusParam = params.get('status')
+
+  const isAccountsOnly =
+    isAccountsUser(departments) &&
+    !canVerifyPOLeadStage(roles, departments) &&
+    !canCreatePO(roles, departments)
 
   const where: Record<string, unknown> = {}
   if (leadId) where.leadId = leadId
   if (indentId) where.indentId = indentId
+  if (statusParam && statusParam !== 'ALL') {
+    where.status = statusParam
+  } else if (isAccountsOnly) {
+    // Accounts should only see POs after Procurement Leader / PC / Admin verification
+    where.status = { not: 'PENDING_LEAD_APPROVAL' }
+  }
 
   const purchaseOrders = await prisma.purchaseOrder.findMany({
     where,
     include: {
+      lead: { select: { id: true, name: true, location: true, phone: true } },
       indent: {
         include: {
           items: {
             include: {
               requisitionItem: {
-                select: { materialName: true, unit: true, workCategory: true },
+                select: { materialName: true, unit: true, workCategory: true, status: true },
               },
             },
           },
         },
       },
       createdBy: { select: { fullName: true } },
+      leadVerifiedBy: { select: { fullName: true } },
       approvedBy: { select: { fullName: true } },
       rejectedBy: { select: { fullName: true } },
     },
@@ -91,6 +106,7 @@ export async function POST(request: NextRequest) {
           poNo,
           indentId: indent.id,
           leadId: indent.leadId,
+          status: 'PENDING_LEAD_APPROVAL',
           totalAmount: Number(indent.total),
           supplierName,
           notes,
@@ -100,6 +116,13 @@ export async function POST(request: NextRequest) {
           createdBy: { select: { fullName: true } },
         },
       })
+    })
+
+    await notifyPOLeadVerifiers({
+      leadId: po.leadId,
+      poNo: po.poNo,
+      totalAmount: po.totalAmount,
+      createdById: auth.actorUserId,
     })
 
     return NextResponse.json({ success: true, data: po }, { status: 201 })

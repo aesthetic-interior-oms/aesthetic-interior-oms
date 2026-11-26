@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Wallet,
@@ -72,6 +72,15 @@ type WalletTransaction = {
   leadId: string | null
   lead?: { id: string; name: string; location: string | null } | null
   materialRequisition?: { id: string; requisitionNo: string } | null
+  purchaseOrder?: { id: string; poNo: string } | null
+  supplierName?: string | null
+  materialsSummary?: Array<{
+    materialName: string
+    quantity: number
+    unit: string
+    unitPrice: number
+    total: number
+  }> | null
   financeAccount?: { id: string; name: string } | null
   rejectionReason?: string | null
   accountsNote?: string | null
@@ -249,6 +258,36 @@ export default function ProcurementFinancePage() {
     if (statusFilter !== 'ALL' && tx.status !== statusFilter) return false
     return true
   })
+
+  const dailySummary = useMemo(() => {
+    const map = new Map<
+      string,
+      { dateLabel: string; received: number; spent: number; count: number }
+    >()
+    for (const tx of filteredTransactions) {
+      const d = new Date(tx.date)
+      const key = d.toISOString().slice(0, 10)
+      const label = d.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+      let entry = map.get(key)
+      if (!entry) {
+        entry = { dateLabel: label, received: 0, spent: 0, count: 0 }
+        map.set(key, entry)
+      }
+      entry.count += 1
+      if (tx.type === 'DISBURSEMENT' || tx.type === 'REIMBURSEMENT') {
+        entry.received += tx.totalAmount
+      } else if (tx.type === 'EXPENSE' || tx.type === 'RETURN_TO_ACCOUNTS') {
+        entry.spent += tx.totalAmount
+      }
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .slice(0, 7)
+  }, [filteredTransactions])
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 max-w-7xl mx-auto">
@@ -608,6 +647,59 @@ export default function ProcurementFinancePage() {
         </Card>
       </div>
 
+      {/* Daily Transaction Log Summary */}
+      {dailySummary.length > 0 && (
+        <Card className="border-border shadow-sm">
+          <CardHeader className="pb-2.5">
+            <CardTitle className="text-sm font-bold">Daily Transaction Log (Recent Days)</CardTitle>
+            <CardDescription className="text-xs">
+              Daily summary of funds received from Accounts vs. material &amp; PO expenses spent.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead className="bg-muted/40 text-muted-foreground font-semibold border-y text-[11px]">
+                  <tr>
+                    <th className="py-2 px-4">Date</th>
+                    <th className="py-2 px-3 text-center">Transactions</th>
+                    <th className="py-2 px-3 text-right">Received (+)</th>
+                    <th className="py-2 px-3 text-right">Spent (-)</th>
+                    <th className="py-2 px-4 text-right">Net Day Flow</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {dailySummary.map(([key, day]) => {
+                    const net = day.received - day.spent
+                    return (
+                      <tr key={key} className="hover:bg-muted/20">
+                        <td className="py-2 px-4 font-semibold text-foreground">{day.dateLabel}</td>
+                        <td className="py-2 px-3 text-center font-mono text-muted-foreground">
+                          {day.count}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono text-emerald-600">
+                          {day.received > 0 ? `+৳${fmt(day.received)}` : '—'}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono text-rose-600">
+                          {day.spent > 0 ? `-৳${fmt(day.spent)}` : '—'}
+                        </td>
+                        <td
+                          className={`py-2 px-4 text-right font-mono font-bold ${
+                            net >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                          }`}
+                        >
+                          {net >= 0 ? '+' : '-'}৳{fmt(Math.abs(net))}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ── Transaction Ledger Section ── */}
       <Card className="border-border shadow-sm">
         <CardHeader className="pb-3 border-b border-border/50">
@@ -730,9 +822,19 @@ export default function ProcurementFinancePage() {
                         </td>
 
                         {/* Particulars & Project */}
-                        <td className="p-3 max-w-xs">
-                          <div className="font-medium text-foreground line-clamp-1">{tx.particular}</div>
+                        <td className="p-3 max-w-md">
+                          <div className="font-medium text-foreground">{tx.particular}</div>
                           <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-1.5 mt-0.5">
+                            {tx.purchaseOrder && (
+                              <span className="font-mono font-semibold px-1.5 py-0.5 rounded bg-muted border text-foreground text-[10px]">
+                                {tx.purchaseOrder.poNo}
+                              </span>
+                            )}
+                            {tx.supplierName && (
+                              <span className="font-medium text-foreground">
+                                Supplier: {tx.supplierName}
+                              </span>
+                            )}
                             {tx.lead && (
                               <span className="font-semibold text-primary">
                                 Project: {tx.lead.name}
@@ -752,6 +854,18 @@ export default function ProcurementFinancePage() {
                               </span>
                             )}
                           </div>
+                          {Array.isArray(tx.materialsSummary) && tx.materialsSummary.length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {tx.materialsSummary.map((m, mIdx) => (
+                                <span
+                                  key={mIdx}
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded bg-muted/50 border text-[10px] text-muted-foreground font-mono"
+                                >
+                                  {m.materialName} ({m.quantity} {m.unit} @ ৳{fmt(m.unitPrice)})
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </td>
 
                         {/* Payment Method */}

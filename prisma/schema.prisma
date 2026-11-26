@@ -224,9 +224,10 @@ model User {
   procurementWalletTxSubmitted   ProcurementWalletTransaction[] @relation("ProcurementWalletSubmittedBy")
   procurementWalletTxReviewed    ProcurementWalletTransaction[] @relation("ProcurementWalletReviewedBy")
   siteDeliveriesReceived         SiteDeliveryLog[]          @relation("SiteDeliveryReceivedBy")
-  purchaseOrdersCreated     PurchaseOrder[]  @relation("PurchaseOrderCreatedBy")
-  purchaseOrdersApproved    PurchaseOrder[]  @relation("PurchaseOrderApprovedBy")
-  purchaseOrdersRejected    PurchaseOrder[]  @relation("PurchaseOrderRejectedBy")
+  purchaseOrdersCreated      PurchaseOrder[]  @relation("PurchaseOrderCreatedBy")
+  purchaseOrdersLeadVerified PurchaseOrder[]  @relation("PurchaseOrderLeadVerifiedBy")
+  purchaseOrdersApproved     PurchaseOrder[]  @relation("PurchaseOrderApprovedBy")
+  purchaseOrdersRejected     PurchaseOrder[]  @relation("PurchaseOrderRejectedBy")
   siteItemCompletionRequested SiteItemCompletionRequest[] @relation("SiteItemCompletionRequestedBy")
   siteItemCompletionReviewed  SiteItemCompletionRequest[] @relation("SiteItemCompletionReviewedBy")
 }
@@ -1963,6 +1964,10 @@ model ProcurementWalletTransaction {
   lead                  Lead?                    @relation(fields: [leadId], references: [id], onDelete: SetNull)
   materialRequisitionId String?
   materialRequisition   MaterialRequisition?     @relation(fields: [materialRequisitionId], references: [id], onDelete: SetNull)
+  purchaseOrderId       String?
+  purchaseOrder         PurchaseOrder?           @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  supplierName          String?
+  materialsSummary      Json?
 
   // Linkage to Accounts
   financeAccountId      String?
@@ -1988,6 +1993,7 @@ model ProcurementWalletTransaction {
   @@index([leadId])
   @@index([financeAccountId])
   @@index([materialRequisitionId])
+  @@index([purchaseOrderId])
 }
 
 enum SiteDeliveryCondition {
@@ -2069,6 +2075,7 @@ model QuotationWorkActivityLog {
 }
 
 enum PurchaseOrderStatus {
+  PENDING_LEAD_APPROVAL
   PENDING_ACCOUNTS_APPROVAL
   APPROVED
   REJECTED
@@ -2076,29 +2083,34 @@ enum PurchaseOrderStatus {
 }
 
 model PurchaseOrder {
-  id              String              @id @default(cuid())
-  poNo            String              @unique
-  indentId        String              @unique
-  leadId          String
-  status          PurchaseOrderStatus @default(PENDING_ACCOUNTS_APPROVAL)
-  totalAmount     Float
-  supplierName    String?
-  notes           String?
-  accountsNote    String?
-  createdById     String
-  approvedById    String?
-  approvedAt      DateTime?
-  rejectedById    String?
-  rejectedAt      DateTime?
-  rejectionReason String?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  id                  String              @id @default(cuid())
+  poNo                String              @unique
+  indentId            String              @unique
+  leadId              String
+  status              PurchaseOrderStatus @default(PENDING_LEAD_APPROVAL)
+  totalAmount         Float
+  supplierName        String?
+  notes               String?
+  accountsNote        String?
+  createdById         String
+  leadVerifiedById    String?
+  leadVerifiedAt      DateTime?
+  leadVerificationNote String?
+  approvedById        String?
+  approvedAt          DateTime?
+  rejectedById        String?
+  rejectedAt          DateTime?
+  rejectionReason     String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
 
-  indent          MaterialIndent      @relation(fields: [indentId], references: [id], onDelete: Restrict)
-  lead            Lead                @relation(fields: [leadId], references: [id], onDelete: Restrict)
-  createdBy       User                @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id])
-  approvedBy      User?               @relation("PurchaseOrderApprovedBy", fields: [approvedById], references: [id])
-  rejectedBy      User?               @relation("PurchaseOrderRejectedBy", fields: [rejectedById], references: [id])
+  indent              MaterialIndent      @relation(fields: [indentId], references: [id], onDelete: Restrict)
+  lead                Lead                @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  createdBy           User                @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id])
+  leadVerifiedBy      User?               @relation("PurchaseOrderLeadVerifiedBy", fields: [leadVerifiedById], references: [id])
+  approvedBy          User?                          @relation("PurchaseOrderApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy          User?                          @relation("PurchaseOrderRejectedBy", fields: [rejectedById], references: [id])
+  walletTransactions  ProcurementWalletTransaction[]
 
   @@index([leadId])
   @@index([status])

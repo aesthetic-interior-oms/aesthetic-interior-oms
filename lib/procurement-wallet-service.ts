@@ -61,6 +61,9 @@ export type RecordExpenseInput = {
   receiptUrl?: string
   leadId?: string
   materialRequisitionId?: string
+  purchaseOrderId?: string
+  supplierName?: string
+  materialsSummary?: unknown
   submittedById: string
 }
 
@@ -139,6 +142,9 @@ export async function recordProcurementExpense(input: RecordExpenseInput) {
         receiptUrl: input.receiptUrl || null,
         leadId: input.leadId || null,
         materialRequisitionId: input.materialRequisitionId || null,
+        purchaseOrderId: input.purchaseOrderId || null,
+        supplierName: input.supplierName || null,
+        materialsSummary: (input.materialsSummary as any) || undefined,
         submittedById: input.submittedById,
       },
       include: {
@@ -155,6 +161,88 @@ export async function recordProcurementExpense(input: RecordExpenseInput) {
     })
 
     return { transaction, wallet: { ...wallet, advanceBalance: updatedAdvanceBalance, pendingReimbursement: updatedPendingReimbursement, totalSpent: updatedTotalSpent } }
+  })
+}
+
+/**
+ * Automatically record a Purchase Order completion expense into a Procurement user's wallet
+ * inside an existing Prisma transaction. Keeps Accounts disbursement & Procurement expense logs connected.
+ */
+export async function recordPurchaseOrderWalletExpense(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  params: {
+    userId: string
+    submittedById: string
+    purchaseOrderId: string
+    poNo: string
+    leadId: string
+    materialRequisitionId: string
+    supplierName: string | null
+    totalAmount: number
+    materialsSummary: Array<{
+      materialName: string
+      quantity: number
+      unit: string
+      unitPrice: number
+      total: number
+      supplierName?: string | null
+    }>
+    note?: string
+  },
+) {
+  if (params.totalAmount <= 0) return null
+
+  let wallet = await tx.procurementWallet.findUnique({
+    where: { userId: params.userId },
+  })
+  if (!wallet) {
+    wallet = await tx.procurementWallet.create({
+      data: {
+        userId: params.userId,
+        advanceBalance: 0,
+        pendingReimbursement: 0,
+        totalSpent: 0,
+      },
+    })
+  }
+
+  const updatedAdvanceBalance = wallet.advanceBalance - params.totalAmount
+  const updatedTotalSpent = wallet.totalSpent + params.totalAmount
+
+  await tx.procurementWallet.update({
+    where: { id: wallet.id },
+    data: {
+      advanceBalance: updatedAdvanceBalance,
+      totalSpent: updatedTotalSpent,
+    },
+  })
+
+  const matCount = params.materialsSummary.length
+  const particular =
+    `${params.poNo} — ${matCount} material${matCount === 1 ? '' : 's'} purchased` +
+    (params.note ? ` (${params.note})` : '')
+
+  return tx.procurementWalletTransaction.create({
+    data: {
+      walletId: wallet.id,
+      type: ProcurementWalletTxType.EXPENSE,
+      status: ProcurementTxStatus.APPROVED,
+      amount: params.totalAmount,
+      charge: 0,
+      totalAmount: params.totalAmount,
+      paymentMethod: 'WALLET',
+      paidFrom: ProcurementPaidFrom.COMPANY_ADVANCE,
+      category: 'RAW_MATERIALS',
+      particular,
+      leadId: params.leadId,
+      materialRequisitionId: params.materialRequisitionId,
+      purchaseOrderId: params.purchaseOrderId,
+      supplierName: params.supplierName,
+      materialsSummary: params.materialsSummary as any,
+      submittedById: params.submittedById,
+      reviewedById: params.submittedById,
+      reviewedAt: new Date(),
+    },
   })
 }
 

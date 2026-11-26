@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { hasProcurementRole, isProcurementLeader } from '@/lib/procurement-roles'
 import { Prisma } from '@/generated/prisma/client'
+import { notifyPOLeadVerifiers } from '@/lib/po-notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -146,7 +147,7 @@ export async function POST(request: Request) {
           createdById: auth.actorUserId,
           items: { create: lineData },
         },
-        include: { items: true },
+        include: { items: true, purchaseOrder: true },
       })
 
       // Optionally / automatically create Purchase Order for Accounts review & dispatch
@@ -164,7 +165,7 @@ export async function POST(request: Request) {
             supplierName: fallbackVendor || lineData[0]?.vendorName || null,
             notes: createdIndent.notes,
             createdById: auth.actorUserId,
-            status: 'PENDING_ACCOUNTS_APPROVAL',
+            status: 'PENDING_LEAD_APPROVAL',
           },
         })
       }
@@ -183,6 +184,14 @@ export async function POST(request: Request) {
     const remainingItems = await prisma.materialRequisitionItem.findMany({ where: { requisitionId: body.requisitionId }, select: { finalQuantity: true, indentItems: { select: { quantity: true } } } })
     const fullyBilled = remainingItems.every((item) => item.indentItems.reduce((sum, row) => sum + Number(row.quantity), 0) >= item.finalQuantity - 0.0001)
     if (fullyBilled) await prisma.materialRequisition.update({ where: { id: body.requisitionId }, data: { status: 'FULFILLED' } })
+    if (indent.purchaseOrder) {
+      await notifyPOLeadVerifiers({
+        leadId: indent.leadId,
+        poNo: indent.purchaseOrder.poNo,
+        totalAmount: Number(indent.purchaseOrder.totalAmount),
+        createdById: auth.actorUserId,
+      })
+    }
     return NextResponse.json({ success: true, data: indent }, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to create indent' }, { status: 400 })

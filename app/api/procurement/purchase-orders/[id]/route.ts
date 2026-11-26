@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
-import { canApprovePO } from '@/lib/purchase-order'
-import { Prisma } from '@/generated/prisma/client'
+import { canApprovePO, canVerifyPOLeadStage } from '@/lib/purchase-order'
+import { NotificationType, Prisma } from '@/generated/prisma/client'
+import {
+  disburseProcurementAdvance,
+  recordPurchaseOrderWalletExpense,
+} from '@/lib/procurement-wallet-service'
 
 export const runtime = 'nodejs'
 
@@ -18,27 +22,156 @@ export async function PATCH(
   const departments = auth.actor.userDepartments ?? []
 
   const body = await request.json().catch(() => null)
-  if (!body || !['APPROVED', 'REJECTED', 'FULFILLED'].includes(body.action)) {
-    return NextResponse.json({ error: 'action must be APPROVED, REJECTED, or FULFILLED' }, { status: 400 })
+  if (
+    !body ||
+    !['LEAD_VERIFY', 'LEAD_REJECT', 'APPROVED', 'REJECTED', 'FULFILLED'].includes(body.action)
+  ) {
+    return NextResponse.json(
+      { error: 'action must be LEAD_VERIFY, LEAD_REJECT, APPROVED, REJECTED, or FULFILLED' },
+      { status: 400 },
+    )
   }
 
   const isProcurement =
     departments.some((d) => d.toUpperCase().includes('PROCUREMENT')) ||
     roles.some((r) => r.toUpperCase().includes('PROCUREMENT'))
   const isAccounts = canApprovePO(roles, departments)
+  const isLeadVerifier = canVerifyPOLeadStage(roles, departments)
 
-  if (body.action === 'FULFILLED') {
+  if (body.action === 'LEAD_VERIFY' || body.action === 'LEAD_REJECT') {
+    if (!isLeadVerifier) {
+      return NextResponse.json(
+        {
+          error:
+            'Only Procurement Leader, Project Coordinator, or Admin can verify Purchase Orders before Accounts',
+        },
+        { status: 403 },
+      )
+    }
+  } else if (body.action === 'FULFILLED') {
     if (!isProcurement && !isAccounts) {
-      return NextResponse.json({ error: 'Only Procurement or Accounts can mark a PO as fulfilled' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Only Procurement or Accounts can mark a PO as fulfilled' },
+        { status: 403 },
+      )
     }
   } else if (!isAccounts) {
-    return NextResponse.json({ error: 'Only Accounts team can approve or reject Purchase Orders' }, { status: 403 })
+    return NextResponse.json(
+      { error: 'Only Accounts team can approve or reject Purchase Orders' },
+      { status: 403 },
+    )
   }
 
-  const po = await prisma.purchaseOrder.findUnique({ where: { id } })
+  const po = await prisma.purchaseOrder.findUnique({
+    where: { id },
+    include: { lead: { select: { id: true, name: true } } },
+  })
   if (!po) return NextResponse.json({ error: 'Purchase Order not found' }, { status: 404 })
 
+  if (body.action === 'LEAD_VERIFY' || body.action === 'LEAD_REJECT') {
+    if (po.status !== 'PENDING_LEAD_APPROVAL') {
+      return NextResponse.json(
+        { error: `Purchase Order is already ${po.status.replace(/_/g, ' ')}` },
+        { status: 409 },
+      )
+    }
+
+    if (body.action === 'LEAD_REJECT') {
+      const reason = typeof body.rejectionReason === 'string' ? body.rejectionReason.trim() : ''
+      if (!reason) {
+        return NextResponse.json({ error: 'Rejection reason is required' }, { status: 400 })
+      }
+      const updated = await prisma.purchaseOrder.update({
+        where: { id },
+        data: {
+          status: 'REJECTED',
+          rejectedById: auth.actorUserId,
+          rejectedAt: new Date(),
+          rejectionReason: reason,
+          leadVerificationNote: body.note?.trim() || null,
+        },
+        include: {
+          leadVerifiedBy: { select: { fullName: true } },
+          approvedBy: { select: { fullName: true } },
+          rejectedBy: { select: { fullName: true } },
+        },
+      })
+
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: po.createdById,
+            leadId: po.leadId,
+            type: NotificationType.LEAD_ASSIGNED_TO_YOU,
+            title: 'Purchase Order Rejected',
+            message: `${po.poNo} for ${po.lead.name} was rejected: "${reason}"`,
+            scheduledFor: new Date(),
+          },
+        })
+      } catch {}
+
+      return NextResponse.json({ success: true, data: updated })
+    }
+
+    // LEAD_VERIFY -> Forward to Accounts
+    const updated = await prisma.purchaseOrder.update({
+      where: { id },
+      data: {
+        status: 'PENDING_ACCOUNTS_APPROVAL',
+        leadVerifiedById: auth.actorUserId,
+        leadVerifiedAt: new Date(),
+        leadVerificationNote: body.note?.trim() || null,
+      },
+      include: {
+        leadVerifiedBy: { select: { fullName: true } },
+        approvedBy: { select: { fullName: true } },
+        rejectedBy: { select: { fullName: true } },
+      },
+    })
+
+    // Notify Accounts team
+    try {
+      const accountsUsers = await prisma.user.findMany({
+        where: {
+          isActive: true,
+          userDepartments: {
+            some: {
+              department: { name: { in: ['ACCOUNTS', 'Accounts', 'FINANCE', 'Finance'] } },
+            },
+          },
+        },
+        select: { id: true },
+      })
+      if (accountsUsers.length > 0) {
+        await prisma.notification.createMany({
+          data: accountsUsers.map((u) => ({
+            userId: u.id,
+            leadId: po.leadId,
+            type: NotificationType.LEAD_ASSIGNED_TO_YOU,
+            title: 'Verified PO Ready for Accounts',
+            message: `${po.poNo} (${po.lead.name}) has been verified and forwarded to Accounts (৳${po.totalAmount.toLocaleString()}).`,
+            scheduledFor: new Date(),
+          })),
+        })
+      }
+    } catch {}
+
+    return NextResponse.json({ success: true, data: updated })
+  }
+
   if (body.action === 'FULFILLED') {
+    if (po.status === 'PENDING_LEAD_APPROVAL') {
+      return NextResponse.json(
+        { error: 'Purchase Order must be verified by Procurement Leader / PC / Admin and approved by Accounts first' },
+        { status: 409 },
+      )
+    }
+    if (po.status === 'PENDING_ACCOUNTS_APPROVAL') {
+      return NextResponse.json(
+        { error: 'Purchase Order is awaiting Accounts approval before purchase completion' },
+        { status: 409 },
+      )
+    }
     if (po.status === 'FULFILLED') {
       return NextResponse.json({ error: 'Purchase Order is already fulfilled' }, { status: 409 })
     }
@@ -80,6 +213,15 @@ export async function PATCH(
           (verifiedItems ?? []).map((v) => [v.indentItemId, v]),
         )
 
+        const purchasedSummary: Array<{
+          materialName: string
+          quantity: number
+          unit: string
+          unitPrice: number
+          total: number
+          supplierName?: string | null
+        }> = []
+
         for (const indentItem of indent.items) {
           const decision = verifyMap.get(indentItem.id)
 
@@ -116,13 +258,15 @@ export async function PATCH(
               finalQty = parsedQty
             }
 
+            const unitPrice = Number(indentItem.unitPrice)
+            const lineTotal = finalQty * unitPrice
+
             if (Math.abs(finalQty - Number(indentItem.quantity)) > 0.0001) {
-              const unitPrice = Number(indentItem.unitPrice)
               await tx.materialIndentItem.update({
                 where: { id: indentItem.id },
                 data: {
                   quantity: new Prisma.Decimal(finalQty),
-                  total: new Prisma.Decimal(finalQty * unitPrice),
+                  total: new Prisma.Decimal(lineTotal),
                 },
               })
             }
@@ -135,6 +279,15 @@ export async function PATCH(
                 purchasedQuantity: finalQty,
                 purchasedAt: now,
               },
+            })
+
+            purchasedSummary.push({
+              materialName: indentItem.requisitionItem.materialName,
+              quantity: finalQty,
+              unit: indentItem.requisitionItem.unit,
+              unitPrice,
+              total: lineTotal,
+              supplierName: indentItem.vendorName || indent.vendorName || fullPo.supplierName,
             })
           }
         }
@@ -170,6 +323,22 @@ export async function PATCH(
             rejectedBy: { select: { fullName: true } },
           },
         })
+
+        // Automatically log expense in the Procurement Member's wallet
+        if (total > 0 && purchasedSummary.length > 0) {
+          await recordPurchaseOrderWalletExpense(tx, {
+            userId: body.walletUserId || auth.actorUserId,
+            submittedById: auth.actorUserId,
+            purchaseOrderId: savedPo.id,
+            poNo: savedPo.poNo,
+            leadId: indent.leadId,
+            materialRequisitionId: indent.requisitionId,
+            supplierName: savedPo.supplierName || indent.vendorName || null,
+            totalAmount: total,
+            materialsSummary: purchasedSummary,
+            note: typeof body.notes === 'string' ? body.notes.trim() : undefined,
+          })
+        }
 
         // Sync Requisition overall status
         const allReqItems = await tx.materialRequisitionItem.findMany({
@@ -247,6 +416,22 @@ export async function PATCH(
       rejectedBy: { select: { fullName: true } },
     },
   })
+
+  if (body.action === 'APPROVED' && typeof body.disburseFromAccountId === 'string' && body.disburseFromAccountId) {
+    try {
+      await disburseProcurementAdvance({
+        userId: po.createdById,
+        financeAccountId: body.disburseFromAccountId,
+        amount: Number(po.totalAmount),
+        charge: Number(body.disburseCharge || 0),
+        paymentMethod: body.disbursePaymentMethod || 'BANK_TRANSFER',
+        particular: `Advance for ${po.poNo} (${po.lead.name})`,
+        recordedById: auth.actorUserId,
+      })
+    } catch (disburseErr) {
+      console.error('[PO Approval] Failed to auto-disburse advance:', disburseErr)
+    }
+  }
 
   return NextResponse.json({ success: true, data: updated })
 }

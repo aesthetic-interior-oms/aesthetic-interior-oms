@@ -764,8 +764,8 @@ export function RequisitionIndentWorkspace({
         isAddingToExisting
           ? `Added ${indentPreview.selectedCount} item(s) to Indent ${data.data?.indentNo || ''}!`
           : autoCreatePO
-            ? `Indent ${data.data?.indentNo || 'Bill'} Created & Dispatched to Accounts!`
-            : `Indent ${data.data?.indentNo || 'Bill'} Created & Dispatched!`,
+            ? `Indent ${data.data?.indentNo || 'Bill'} & PO Created — Sent to Procurement Leader / PC for Approval!`
+            : `Indent ${data.data?.indentNo || 'Bill'} Created!`,
         {
           description: `Updated for ${requisition.lead.name}.`,
         },
@@ -1799,7 +1799,7 @@ export function RequisitionIndentWorkspace({
                           onChange={(e) => setAutoCreatePO(e.target.checked)}
                           className="h-4 w-4 rounded border-border text-foreground focus:ring-foreground cursor-pointer"
                         />
-                        <span>Auto-create Purchase Order and dispatch to Accounts for approval</span>
+                        <span>Auto-create Purchase Order and send to Procurement Leader / PC for verification before Accounts</span>
                       </label>
                     )}
                   </div>
@@ -1922,7 +1922,8 @@ export function RequisitionIndentWorkspace({
                               <Pencil className="w-3.5 h-3.5" />
                               Edit Indent
                             </Button>
-                            {indent.purchaseOrder?.status !== 'FULFILLED' && (indent.items?.length ?? 0) > 0 && (
+                            {(!indent.purchaseOrder || indent.purchaseOrder.status === 'APPROVED') &&
+                              (indent.items?.length ?? 0) > 0 && (
                               <Button
                                 type="button"
                                 size="sm"

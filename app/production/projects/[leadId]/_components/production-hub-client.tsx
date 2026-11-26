@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type POStatus = 'PENDING_ACCOUNTS_APPROVAL' | 'APPROVED' | 'REJECTED' | 'FULFILLED'
+type POStatus = 'PENDING_LEAD_APPROVAL' | 'PENDING_ACCOUNTS_APPROVAL' | 'APPROVED' | 'REJECTED' | 'FULFILLED'
 
 type PurchaseOrder = {
   id: string
@@ -107,8 +107,10 @@ type HubData = {
 
 function poStatusBadge(status: POStatus) {
   switch (status) {
+    case 'PENDING_LEAD_APPROVAL':
+      return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300 border border-orange-200 dark:border-orange-800"><Clock className="w-3 h-3" />Pending Leader/PC Verification</span>
     case 'PENDING_ACCOUNTS_APPROVAL':
-      return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800"><Clock className="w-3 h-3" />Pending Approval</span>
+      return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800"><Clock className="w-3 h-3" />Pending Accounts Approval</span>
     case 'APPROVED':
       return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"><CheckCircle2 className="w-3 h-3" />Approved</span>
     case 'REJECTED':
